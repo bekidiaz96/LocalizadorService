@@ -5,7 +5,7 @@ from db_handler import obtener_no_sincronizados, marcar_como_sincronizado
 
 # Configuración de la base de datos PostgreSQL del servidor central
 POSTGRES_CONFIG = {
-    "host": "192.168.3.18",     # IP del servidor
+    "host": "100.126.119.25",     # IP del servidor
     "port": 5432,
     "dbname": "db_rsb",
     "user": "postgres",
@@ -30,8 +30,9 @@ def insertar_en_postgres(conn, registro):
         cursor.execute("""
             INSERT INTO localizaciones (
                 id, vehiculo_id, temperatura_arduino, temperatura_interior1,
-                temperatura_interior2, puerta1, puerta2, temperatura, ubicacion
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+                temperatura_interior2, puerta1, puerta2, ubicacion, 
+                sincronizado, humedad
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
             --ON CONFLICT (id, vehiculo_id) DO NOTHING;
         """, (
             registro[0],  # id
@@ -40,9 +41,10 @@ def insertar_en_postgres(conn, registro):
             registro[3],  # temperatura_interior1
             registro[4],  # temperatura_interior2
             registro[5],  # puerta1
-            registro[6],  # puerta2
-            registro[7],  # temperatura
-            registro[8],  # ubicacion
+            registro[6],  # puerta2            
+            registro[7],  # ubicacion
+            registro[8],  # sincronizado
+            registro[9],  # humedad
         ))
 
 
@@ -50,6 +52,7 @@ def run_sync_service():
     while True:
         registros = obtener_no_sincronizados()
         if not registros:
+            ptint("No se recuperaron ningun registro")
             time.sleep(30)
             continue
 
