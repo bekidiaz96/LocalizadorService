@@ -2,17 +2,17 @@ import serial
 import time
 import re
 from logger_setup import setup_logger  ## guardar eventos de la ejecucion ./logs
-from db_handler import insertar_registro ## insertar en la base de datos local SQLite
+from db_handler import init_db, insertar_registro ## insertar en la base de datos local SQLite
 # Inicializar logger
 logger = setup_logger()
-
+init_db()
 # Serial del Arduino (ajustá si estás usando otro UART)
 arduino_serial = serial.Serial("/dev/ttyAMA0", 9600, timeout=1)
 
 # Serial del GPS (usando UART4)
 gps_serial = serial.Serial("/dev/ttyAMA4", 9600, timeout=1)
 
-vehiculo_id = 1
+vehiculo_id = 2
 
 def convertir_nmea_a_decimal(nmea_lat, lat_dir, nmea_lon, lon_dir):
     # Latitud
@@ -50,14 +50,14 @@ while True:
         arduino_line = arduino_serial.readline().decode('utf-8', errors='ignore').strip()
         if not arduino_line:
             continue
-
-        print("Datos Arduino:", arduino_line)
+        
         datos = arduino_line.split(',')
+        print("Datos Arduino:", arduino_line)
 
         # Validar estructura
-        if len(datos) < 6:
-            logger.warning(f"Línea inválida: {arduino_line}")
-            continue
+        #if 6 > 4:
+        #    logger.warning(f"Línea inválida: {arduino_line}")
+        #   continue
 
         try:
             temperatura_interior1 = float(datos[0])
@@ -78,6 +78,7 @@ while True:
             continue
 
         ubicacion = f"{lat},{lon}"
+        print(f"Coordenadas. Latitud: {lat}, longitud:  {lon}")
 
         # Crear y registrar el dato válido
         registro = (
