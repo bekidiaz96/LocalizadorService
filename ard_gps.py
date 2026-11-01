@@ -12,8 +12,8 @@ load_dotenv()
 logger = setup_logger()
 init_db()
 
-# Obtener ID dinámico desde el servidor centralizado
-vehiculo_id = obtener_siguiente_vehiculo_id()
+# Obtener ID dinámico (desde archivo local o servidor)
+vehiculo_id = obtener_o_generar_vehiculo_id()
 
 # Configuración Serial
 arduino_port = os.getenv("ARDUINO_PORT", "/dev/ttyAMA0")

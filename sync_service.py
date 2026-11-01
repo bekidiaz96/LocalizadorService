@@ -6,6 +6,8 @@ from db_handler import obtener_no_sincronizados, marcar_como_sincronizado
 
 load_dotenv()
 
+ID_FILE = "vehiculo_id.txt"
+
 def conectar_postgres():
     return psycopg2.connect(
         host=os.getenv("DB_HOST"),
@@ -15,22 +17,39 @@ def conectar_postgres():
         password=os.getenv("DB_PASS")
     )
 
-def obtener_siguiente_vehiculo_id():
-    """Consulta el max(vehiculo_id) en PostgreSQL y retorna max + 1."""
+def obtener_o_generar_vehiculo_id():
+    """Verifica el ID local; si no existe, consulta en PostgreSQL y lo guarda."""
+    # 1. Intentar leer el ID desde el archivo local
+    if os.path.exists(ID_FILE):
+        try:
+            with open(ID_FILE, "r") as f:
+                vid = int(f.read().strip())
+                print(f"[INFO] vehiculo_id recuperado localmente: {vid}")
+                return vid
+        except ValueError:
+            print("[WARNING] Archivo de ID corrupto. Se generará uno nuevo.")
+
+    # 2. Si no existe el archivo local, consultar al servidor PostgreSQL
     try:
         conn = conectar_postgres()
         with conn.cursor() as cursor:
             cursor.execute("SELECT COALESCE(MAX(vehiculo_id), 0) FROM localizaciones;")
             max_id = cursor.fetchone()[0]
             siguiente_id = max_id + 1
-            print(f"[INFO] Siguiente vehiculo_id asignado: {siguiente_id}")
+            
+            # 3. Guardar el nuevo ID en el archivo local para futuros viajes
+            with open(ID_FILE, "w") as f:
+                f.write(str(siguiente_id))
+                
+            print(f"[INFO] Nuevo vehiculo_id asignado por el servidor y guardado: {siguiente_id}")
             return siguiente_id
     except Exception as e:
         print(f"[ERROR] No se pudo obtener el vehiculo_id del servidor: {e}")
-        return 1 # ID de respaldo en caso de fallo de conexión
+        return 1 # ID de respaldo en caso de fallo crítico de conexión
     finally:
         if 'conn' in locals():
             conn.close()
+
 
 def insertar_en_postgres(conn, registro):
     with conn.cursor() as cursor:

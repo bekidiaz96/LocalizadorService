@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Archivo de ID de vehículo local
+vehiculo_id.txt
