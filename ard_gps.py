@@ -1,63 +1,61 @@
+import os
 import serial
 import time
-import re
-from logger_setup import setup_logger  ## guardar eventos de la ejecucion ./logs
-from db_handler import init_db, insertar_registro ## insertar en la base de datos local SQLite
-# Inicializar logger
+from dotenv import load_dotenv
+from logger_setup import setup_logger
+from db_handler import init_db, insertar_registro
+from sync_service import obtener_siguiente_vehiculo_id
+
+load_dotenv()
+
+# Inicialización
 logger = setup_logger()
 init_db()
-# Serial del Arduino (ajustá si estás usando otro UART)
-arduino_serial = serial.Serial("/dev/ttyAMA0", 9600, timeout=1)
 
-# Serial del GPS (usando UART4)
-gps_serial = serial.Serial("/dev/ttyAMA4", 9600, timeout=1)
+# Obtener ID dinámico desde el servidor centralizado
+vehiculo_id = obtener_siguiente_vehiculo_id()
 
-vehiculo_id = 2
+# Configuración Serial
+arduino_port = os.getenv("ARDUINO_PORT", "/dev/ttyAMA0")
+gps_port = os.getenv("GPS_PORT", "/dev/ttyAMA4")
+baud_rate = int(os.getenv("BAUD_RATE", 9600))
+
+arduino_serial = serial.Serial(arduino_port, baud_rate, timeout=1)
+gps_serial = serial.Serial(gps_port, baud_rate, timeout=1)
 
 def convertir_nmea_a_decimal(nmea_lat, lat_dir, nmea_lon, lon_dir):
-    # Latitud
     lat_grados = int(nmea_lat[:2])
     lat_min = float(nmea_lat[2:])
     lat_decimal = lat_grados + (lat_min / 60)
-    if lat_dir == "S":
-        lat_decimal *= -1
-
-    # Longitud
+    if lat_dir == "S": lat_decimal *= -1
+    
     lon_grados = int(nmea_lon[:3])
     lon_min = float(nmea_lon[3:])
     lon_decimal = lon_grados + (lon_min / 60)
-    if lon_dir == "W":
-        lon_decimal *= -1
+    if lon_dir == "W": lon_decimal *= -1
 
     return round(lat_decimal, 6), round(lon_decimal, 6)
 
 def leer_gps():
-    while True:
+    # Intento de lectura con timeout para no bloquear el proceso
+    for _ in range(5):
         line = gps_serial.readline().decode('utf-8', errors='ignore').strip()
         if line.startswith('$GPGGA'):
             data = line.split(',')
-            if data[2] and data[4]:  # hay datos válidos
-                lat, lat_dir = data[2], data[3]
-                lon, lon_dir = data[4], data[5]
-                return convertir_nmea_a_decimal(lat, lat_dir, lon, lon_dir)
-        time.sleep(0.1)
+            if len(data) > 5 and data[2] and data[4]:
+                return convertir_nmea_a_decimal(data[2], data[3], data[4], data[5])
+    return None, None
 
-print("Iniciando lectura...")
+print(f"Iniciando captura de datos para el Vehículo ID: {vehiculo_id}")
 
 while True:
     try:
-        # Leer línea del Arduino
         arduino_line = arduino_serial.readline().decode('utf-8', errors='ignore').strip()
-        if not arduino_line:
-            continue
-        
-        datos = arduino_line.split(',')
-        print("Datos Arduino:", arduino_line)
+        if not arduino_line: continue
 
-        # Validar estructura
-        #if 6 > 4:
-        #    logger.warning(f"Línea inválida: {arduino_line}")
-        #   continue
+        datos = arduino_line.split(',')
+        if len(datos) < 6:
+            continue
 
         try:
             temperatura_interior1 = float(datos[0])
@@ -71,36 +69,26 @@ while True:
         puerta1 = 0 if datos[4].strip().upper() == 'CERRADA' else 1
         puerta2 = 0 if datos[5].strip().upper() == 'CERRADA' else 1
 
-        # Leer coordenadas GPS y validar
         lat, lon = leer_gps()
-        if lat is None or lon is None or (lat == 0 and lon == 0):
+        if lat is None or lon is None:
             logger.warning("GPS inválido o sin señal.")
             continue
 
         ubicacion = f"{lat},{lon}"
-        print(f"Coordenadas. Latitud: {lat}, longitud:  {lon}")
-
-        # Crear y registrar el dato válido
+        
         registro = (
-            vehiculo_id,
-            temperatura_arduino,
-            temperatura_interior1,
-            temperatura_interior2,
-            puerta1,
-            puerta2,
-            humedad,    
-            ubicacion
+            vehiculo_id, temperatura_arduino, temperatura_interior1,
+            temperatura_interior2, puerta1, puerta2, humedad, ubicacion
         )
 
         insertar_registro(registro)
         logger.info(f"Registro insertado: {registro}")
-
-        print("Esperando 10 segundos...\n")
         time.sleep(10)
-    except Exception as e:
-        logger.error(f"Error: {e}")
+
     except KeyboardInterrupt:
         print("Detenido por el usuario.")
         arduino_serial.close()
         gps_serial.close()
         break
+    except Exception as e:
+        logger.error(f"Error en bucle principal: {e}")
