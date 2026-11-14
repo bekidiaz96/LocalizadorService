@@ -4,7 +4,7 @@ import time
 from dotenv import load_dotenv
 from logger_setup import setup_logger
 from db_handler import init_db, insertar_registro
-from sync_service import obtener_siguiente_vehiculo_id
+from sync_service import obtener_o_generar_vehiculo_id
 
 load_dotenv()
 
@@ -50,11 +50,24 @@ print(f"Iniciando captura de datos para el Vehículo ID: {vehiculo_id}")
 
 while True:
     try:
+        # 1. Intentar leer del Arduino
         arduino_line = arduino_serial.readline().decode('utf-8', errors='ignore').strip()
-        if not arduino_line: continue
+        
+        # 2. Detectar si la lectura está vacía (silencio del Arduino)
+        if not arduino_line:
+            logger.warning("No se están recibiendo datos del Arduino (Timeout de 1s).")
+            print("[WARNING] No hay datos. ¿Está el Arduino encendido y enviando por el puerto correcto?")
+            time.sleep(2) # Pausa breve para no inundar la terminal
+            continue
+
+        # 3. Imprimir el dato crudo para ver si llega basura o caracteres extraños
+        print(f"[DEBUG] Línea cruda recibida del Arduino: '{arduino_line}'")
 
         datos = arduino_line.split(',')
+        
+        # 4. Validar que vengan todos los datos esperados
         if len(datos) < 6:
+            logger.warning(f"Trama incompleta recibida (esperaba al menos 6 valores, llegaron {len(datos)}): {arduino_line}")
             continue
 
         try:
@@ -69,12 +82,14 @@ while True:
         puerta1 = 0 if datos[4].strip().upper() == 'CERRADA' else 1
         puerta2 = 0 if datos[5].strip().upper() == 'CERRADA' else 1
 
+        # Leer coordenadas GPS y validar
         lat, lon = leer_gps()
         if lat is None or lon is None:
-            logger.warning("GPS inválido o sin señal.")
+            logger.warning("GPS inválido o sin señal. Omitiendo registro.")
             continue
 
         ubicacion = f"{lat},{lon}"
+        print(f"[DEBUG] Ubicacion: '{ubicacion}'")
         
         registro = (
             vehiculo_id, temperatura_arduino, temperatura_interior1,
@@ -85,10 +100,16 @@ while True:
         logger.info(f"Registro insertado: {registro}")
         time.sleep(10)
 
+    except serial.SerialException as e:
+        logger.error(f"Se perdió la conexión física con el dispositivo serial: {e}")
+        print("[ERROR CRÍTICO] Dispositivo desconectado. Verifica los cables.")
+        time.sleep(5)
+        
     except KeyboardInterrupt:
         print("Detenido por el usuario.")
         arduino_serial.close()
         gps_serial.close()
         break
     except Exception as e:
-        logger.error(f"Error en bucle principal: {e}")
+        logger.error(f"Error inesperado en bucle principal: {e}")
+        time.sleep(2)
