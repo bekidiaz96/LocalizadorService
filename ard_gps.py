@@ -40,6 +40,7 @@ def leer_gps():
     # Intento de lectura con timeout para no bloquear el proceso
     for _ in range(5):
         line = gps_serial.readline().decode('utf-8', errors='ignore').strip()
+        print(f"[DEBUG] Ubicacion: '{line}'")
         if line.startswith('$GPGGA'):
             data = line.split(',')
             if len(data) > 5 and data[2] and data[4]:
@@ -98,6 +99,7 @@ while True:
 
         insertar_registro(registro)
         logger.info(f"Registro insertado: {registro}")
+        print(f"[SUCCESS] Registro guardado en SQLite: {registro}")
         time.sleep(10)
 
     except serial.SerialException as e:

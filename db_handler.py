@@ -3,9 +3,13 @@ import sqlite3
 
 DB_PATH = './vehiculos.db'
 
+def get_connection():
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS localizaciones (
@@ -17,39 +21,40 @@ def init_db():
             puerta1 INTEGER DEFAULT (0) NOT NULL,
             puerta2 INTEGER DEFAULT (0) NOT NULL,
             ubicacion varchar not null, 
-            humedad integer  not null,
+            humedad integer not null,
             sincronizado INTEGER DEFAULT (0) NOT NULL
-            
         );
     """)
     conn.commit()
     conn.close()
 
-
 def insertar_registro(data):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO localizaciones (
             vehiculo_id, temperatura_arduino, temperatura_interior1,
-            temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+            temperatura_interior2, puerta1, puerta2, humedad, ubicacion, sincronizado
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
     """, data)
     conn.commit()
     conn.close()
 
-
 def obtener_no_sincronizados():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, vehiculo_id, temperatura_arduino, temperatura_interior1, temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad FROM localizaciones WHERE sincronizado = 0")
+    cursor.execute("""
+        SELECT id, vehiculo_id, temperatura_arduino, temperatura_interior1,
+               temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad
+        FROM localizaciones
+        WHERE sincronizado = 0
+    """)
     resultados = cursor.fetchall()
     conn.close()
     return resultados
 
-
 def marcar_como_sincronizado(id_):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE localizaciones SET sincronizado = 1 WHERE id = ?", (id_,))
     conn.commit()
