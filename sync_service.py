@@ -56,8 +56,8 @@ def insertar_en_postgres(conn, registro):
         cursor.execute("""
             INSERT INTO localizaciones (
                 id, vehiculo_id, temperatura_arduino, temperatura_interior1,
-                temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad, hora_registro
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
         """, registro)
 
 def run_sync_service():
