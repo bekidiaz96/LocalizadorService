@@ -1,6 +1,7 @@
 import os
 import serial
 import time
+from datetime import datetime
 from dotenv import load_dotenv
 from logger_setup import setup_logger
 from db_handler import init_db, insertar_registro
