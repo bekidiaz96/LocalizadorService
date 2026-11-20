@@ -22,7 +22,8 @@ def init_db():
             puerta2 INTEGER DEFAULT (0) NOT NULL,
             ubicacion varchar not null, 
             humedad integer not null,
-            sincronizado INTEGER DEFAULT (0) NOT NULL
+            sincronizado INTEGER DEFAULT (0) NOT NULL,
+            hora_registro TEXT NOT NULL
         );
     """)
     conn.commit()
@@ -34,8 +35,8 @@ def insertar_registro(data):
     cursor.execute("""
         INSERT INTO localizaciones (
             vehiculo_id, temperatura_arduino, temperatura_interior1,
-            temperatura_interior2, puerta1, puerta2, humedad, ubicacion, sincronizado
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+            temperatura_interior2, puerta1, puerta2, humedad, ubicacion, hora_registro, sincronizado
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     """, data)
     conn.commit()
     conn.close()
@@ -45,7 +46,7 @@ def obtener_no_sincronizados():
     cursor = conn.cursor()
     cursor.execute("""
         SELECT id, vehiculo_id, temperatura_arduino, temperatura_interior1,
-               temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad
+               temperatura_interior2, puerta1, puerta2, ubicacion, sincronizado, humedad, hora_registro
         FROM localizaciones
         WHERE sincronizado = 0
     """)
