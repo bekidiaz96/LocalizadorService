@@ -88,6 +88,10 @@ while True:
 
         print(f"[DEBUG] Línea recibida del Arduino: '{arduino_line}'")
 
+        # Capturar la fecha y hora exacta en el instante en que llega el dato del Arduino
+        hora_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        print(f"[DEBUG] ({hora_captura}) Línea recibida del Arduino: '{arduino_line}'")
+
         # 2. Detectar mensajes de control del switch físico del Arduino
         if arduino_line in ("MONITOREO ACTIVADO", "MONITOREO DESACTIVADO"):
             logger.info(f"Estado del sistema Arduino: {arduino_line}")
@@ -124,7 +128,7 @@ while True:
 
         registro = (
             vehiculo_id, temperatura_arduino, temperatura_interior1,
-            temperatura_interior2, puerta1, puerta2, humedad, ubicacion
+            temperatura_interior2, puerta1, puerta2, humedad, ubicacion, hora_captura
         )
 
         insertar_registro(registro)
